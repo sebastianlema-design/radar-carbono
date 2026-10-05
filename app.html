@@ -1,0 +1,489 @@
+<title>Radar Mediático de Carbono</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: one working column — search form on top, dated result dossiers stacked below, newest first. */
+:root {
+  --bg: #f3f5f2;
+  --surface: #ffffff;
+  --ink: #17231d;
+  --muted: #5a6960;
+  --line: #d9e0da;
+  --accent: #1f5b43;
+  --accent-ink: #ffffff;
+  --accent-soft: #e2eee7;
+  --alert: #a33a1f;
+  --alert-soft: #f8e6e0;
+  --context: #7a5a0c;
+  --context-soft: #f5edd6;
+  --ok: #2d6a4f;
+  --ok-soft: #e0efe6;
+  --font-display: "Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+  --font-body: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+  --radius: 10px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #111a15; --surface: #18231d; --ink: #e6ede8; --muted: #9aaba1; --line: #2c3a32;
+    --accent: #6fc49c; --accent-ink: #0d1a13; --accent-soft: #1f3a2d;
+    --alert: #f08f72; --alert-soft: #3a211a; --context: #e2c173; --context-soft: #342b14;
+    --ok: #7fcfa4; --ok-soft: #1c3528; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #111a15; --surface: #18231d; --ink: #e6ede8; --muted: #9aaba1; --line: #2c3a32;
+  --accent: #6fc49c; --accent-ink: #0d1a13; --accent-soft: #1f3a2d;
+  --alert: #f08f72; --alert-soft: #3a211a; --context: #e2c173; --context-soft: #342b14;
+  --ok: #7fcfa4; --ok-soft: #1c3528; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--ink); font: 15px/1.55 var(--font-body); margin: 0; }
+.wrap { max-width: 860px; margin: 0 auto; padding-inline: 16px; padding-block: 20px 56px; display: flex; flex-direction: column; gap: 22px; }
+
+header.top { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.brand { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; min-width: 0; }
+.brand h1 { font: 700 clamp(22px, 4vw, 28px)/1.1 var(--font-display); margin: 0; letter-spacing: -0.01em; text-wrap: balance; }
+.brand span { font: 500 12px var(--font-mono); color: var(--muted); letter-spacing: .04em; text-transform: uppercase; }
+.lang { display: inline-flex; border: 1px solid var(--line); border-radius: 999px; padding: 3px; background: var(--surface); }
+.lang button { border: 0; background: transparent; color: var(--muted); font: 600 12px var(--font-mono); padding: 5px 12px; border-radius: 999px; cursor: pointer; letter-spacing: .05em; }
+.lang button[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); }
+
+.banner { font-size: 13px; color: var(--context); background: var(--context-soft); border-radius: var(--radius); padding: 10px 14px; }
+
+form.search { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 18px; display: flex; flex-direction: column; gap: 14px; }
+.intro { margin: 0; color: var(--muted); max-width: 65ch; }
+label { display: flex; flex-direction: column; gap: 5px; font-size: 13px; font-weight: 600; min-width: 0; }
+label small { font-weight: 400; color: var(--muted); }
+input[type=text], input[type=password] { font: 15px var(--font-body); color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; width: 100%; }
+input:focus-visible, button:focus-visible, summary:focus-visible, a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.main-field input { font-size: 17px; padding: 12px 14px; }
+details.more summary { cursor: pointer; font-size: 13px; font-weight: 600; color: var(--accent); width: fit-content; }
+.grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-top: 12px; }
+@media (max-width: 560px) { .grid { grid-template-columns: 1fr; } }
+.actions { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+button.primary { font: 600 15px var(--font-body); background: var(--accent); color: var(--accent-ink); border: 0; border-radius: 8px; padding: 11px 20px; cursor: pointer; }
+button.primary:disabled { opacity: .55; cursor: progress; }
+button.ghost { font: 500 13px var(--font-body); background: transparent; color: var(--muted); border: 1px solid var(--line); border-radius: 8px; padding: 8px 14px; cursor: pointer; }
+.scope { font: 12px var(--font-mono); color: var(--muted); }
+.formerr { color: var(--alert); font-size: 13px; margin: 0; }
+
+.results { display: flex; flex-direction: column; gap: 18px; }
+.empty { text-align: left; color: var(--muted); border: 1px dashed var(--line); border-radius: var(--radius); padding: 22px; }
+
+article.dossier { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; }
+.d-head { padding: 16px 18px 12px; display: flex; flex-direction: column; gap: 8px; border-bottom: 1px solid var(--line); }
+.d-title { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; flex-wrap: wrap; }
+.d-title h2 { font: 700 19px/1.25 var(--font-display); margin: 0; min-width: 0; overflow-wrap: anywhere; text-wrap: balance; }
+.meta-line { font: 12px var(--font-mono); color: var(--muted); display: flex; gap: 6px 14px; flex-wrap: wrap; }
+.pill { display: inline-flex; align-items: center; gap: 6px; font: 600 12px var(--font-body); padding: 4px 10px; border-radius: 999px; white-space: nowrap; }
+.pill::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+.pill.yes { color: var(--alert); background: var(--alert-soft); }
+.pill.mentions { color: var(--context); background: var(--context-soft); }
+.pill.no { color: var(--ok); background: var(--ok-soft); }
+.d-body { padding: 14px 18px 16px; display: flex; flex-direction: column; gap: 14px; }
+.summary { margin: 0; max-width: 70ch; }
+h3 { font: 600 11px var(--font-mono); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin: 0; }
+ul.alerts, ul.mentions { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+ul.alerts li { padding: 10px 0 10px 14px; border-left: 3px solid var(--alert); margin-bottom: 8px; display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+ul.alerts li.ctx { border-left-color: var(--context); }
+.a-top { display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; }
+.a-cat { font-weight: 600; }
+.tag { font: 500 11px var(--font-mono); padding: 1px 7px; border-radius: 4px; }
+.tag.dir { background: var(--alert-soft); color: var(--alert); }
+.tag.ctx { background: var(--context-soft); color: var(--context); }
+.a-desc { margin: 0; max-width: 70ch; }
+.sources { display: flex; gap: 4px 12px; flex-wrap: wrap; font-size: 13px; }
+a { color: var(--accent); text-underline-offset: 2px; overflow-wrap: anywhere; }
+.date { font: 12px var(--font-mono); color: var(--muted); }
+ul.mentions li { padding: 7px 0; border-top: 1px solid var(--line); display: flex; gap: 4px 10px; flex-wrap: wrap; align-items: baseline; font-size: 14px; }
+ul.mentions li:first-child { border-top: 0; }
+.d-foot { padding: 10px 18px; background: var(--bg); border-top: 1px solid var(--line); font: 12px var(--font-mono); color: var(--muted); display: flex; gap: 4px 16px; flex-wrap: wrap; }
+.d-foot strong { color: var(--ink); font-weight: 500; }
+
+.loading { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 18px; display: flex; gap: 14px; align-items: center; flex-wrap: wrap; }
+.spinner { width: 18px; height: 18px; border: 2px solid var(--line); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.9s linear infinite; flex: none; }
+@keyframes spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .spinner { animation: none; } }
+.loading .txt { flex: 1; min-width: 200px; }
+.loading .elapsed { font: 12px var(--font-mono); color: var(--muted); }
+.errorbox { background: var(--alert-soft); color: var(--alert); border-radius: var(--radius); padding: 12px 16px; font-size: 14px; }
+.disclaimer { font-size: 12px; color: var(--muted); max-width: 75ch; margin: 0; }
+</style>
+
+<div class="wrap">
+  <header class="top">
+    <div class="brand">
+      <h1 id="t-title">Radar Mediático de Carbono</h1>
+      <span id="t-sub">Due diligence · prensa</span>
+    </div>
+    <div class="lang" role="group" aria-label="Idioma / Language">
+      <button type="button" id="lang-es" aria-pressed="true">ES</button>
+      <button type="button" id="lang-en" aria-pressed="false">EN</button>
+    </div>
+  </header>
+
+  <div class="banner" id="demo-banner" hidden></div>
+
+  <form class="search" id="form" novalidate>
+    <p class="intro" id="t-intro"></p>
+    <label class="main-field" for="f-nombre"><span id="t-name"></span>
+      <input type="text" id="f-nombre" autocomplete="off" required>
+    </label>
+    <details class="more" id="more">
+      <summary id="t-more"></summary>
+      <div class="grid">
+        <label for="f-id"><span id="t-id"></span><input type="text" id="f-id" autocomplete="off" placeholder="VCS 1234"></label>
+        <label for="f-pais"><span id="t-country"></span><input type="text" id="f-pais" autocomplete="off"></label>
+        <label for="f-dev"><span id="t-dev"></span><input type="text" id="f-dev" autocomplete="off"></label>
+        <label for="f-terr"><span id="t-terr"></span><input type="text" id="f-terr" autocomplete="off"></label>
+      </div>
+    </details>
+    <label for="f-code" id="code-wrap" hidden><span id="t-code"></span><input type="password" id="f-code" autocomplete="off"></label>
+    <div class="actions">
+      <button type="submit" class="primary" id="go"></button>
+      <span class="scope" id="t-scope"></span>
+    </div>
+    <p class="formerr" id="formerr" hidden></p>
+  </form>
+
+  <section class="results" id="results" aria-live="polite"></section>
+
+  <p class="disclaimer" id="t-disclaimer"></p>
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  const T = {
+    es: {
+      sub: "Due diligence · prensa",
+      intro: "Escribe el nombre de un proyecto de carbono. La IA busca en la web sus apariciones en medios y fuentes institucionales, y señala las alertas documentadas con enlace a cada fuente.",
+      name: "Nombre del proyecto",
+      more: "Datos opcionales para evitar confusiones",
+      id: "ID en el registro", country: "País", dev: "Desarrollador", terr: "Territorio o resguardo",
+      code: "Código de acceso",
+      go: "Buscar apariciones", going: "Buscando…",
+      scope: (y) => `Español e inglés · últimos ${y} años`,
+      needName: "Escribe el nombre del proyecto (mínimo 3 caracteres).",
+      demoOffline: "Vista previa: esta página no está conectada al servidor, así que muestra un resultado de ejemplo. Al desplegarla con tu clave de API, cada búsqueda consulta la web en tiempo real.",
+      demoServer: "Modo demostración: falta la clave de API en el servidor, así que se muestra un resultado de ejemplo.",
+      emptyState: "Aquí aparecerán los resultados. Cada búsqueda toma entre 1 y 4 minutos porque la IA revisa varias fuentes antes de responder.",
+      loading: (n) => `Buscando apariciones de «${n}» en la web…`,
+      loadingHint: "La IA hace varias búsquedas en español e inglés y verifica cada fuente.",
+      stop: "Detener",
+      yes: "Con apariciones mediáticas", no: "Sin apariciones mediáticas",
+      alertsH: (n) => `Alertas identificadas (${n})`, noAlerts: "No se identificaron alertas en las fuentes encontradas.",
+      mentionsH: "Otras apariciones", direct: "Relación directa", context: "Contexto",
+      cutoff: "Fecha de corte", period: "Periodo revisado", searches: "Búsquedas", dropped: "Fuentes no verificables descartadas",
+      example: "Ejemplo",
+      cats: {
+        exclusion_comunidades: "Exclusión de comunidades / consulta previa",
+        retiro_registro: "Retiro o suspensión en registro",
+        sobreestimacion: "Sobreestimación de créditos",
+        doble_conteo: "Doble conteo / superposición",
+        conflicto_tierra: "Conflicto de tierras",
+        sanciones: "Sanciones o investigaciones",
+        deforestacion: "Deforestación en el área",
+        otra: "Otra alerta"
+      },
+      errors: {
+        bad_code: "El código de acceso no es correcto.",
+        rate_limited: "Se alcanzó el límite de búsquedas por hora. Intenta más tarde.",
+        busy: "El servicio de IA está saturado en este momento. Intenta de nuevo en unos minutos.",
+        bad_format: "La IA respondió en un formato inesperado. Vuelve a intentarlo.",
+        missing_name: "Escribe el nombre del proyecto.",
+        network: "No se pudo conectar con el servidor. Revisa tu conexión e intenta de nuevo.",
+        generic: "La búsqueda falló. Intenta de nuevo; si persiste, revisa los registros del servidor."
+      },
+      disclaimer: "Los resultados se generan con IA a partir de fuentes públicas y pueden contener errores u omisiones. Cada alerta enlaza a su fuente para que la verifiques. No constituye una calificación ni una opinión legal sobre el proyecto.",
+      months: ["ene","feb","mar","abr","may","jun","jul","ago","sep","oct","nov","dic"]
+    },
+    en: {
+      sub: "Due diligence · press",
+      intro: "Enter the name of a carbon project. The AI searches the web for its appearances in the media and institutional sources, and flags documented alerts with a link to each source.",
+      name: "Project name",
+      more: "Optional details to avoid mix-ups",
+      id: "Registry ID", country: "Country", dev: "Developer", terr: "Territory or indigenous reserve",
+      code: "Access code",
+      go: "Search appearances", going: "Searching…",
+      scope: (y) => `Spanish and English · last ${y} years`,
+      needName: "Enter the project name (at least 3 characters).",
+      demoOffline: "Preview: this page is not connected to the server, so it shows a sample result. Once deployed with your API key, each search queries the web live.",
+      demoServer: "Demo mode: the server has no API key, so a sample result is shown.",
+      emptyState: "Results will appear here. Each search takes 1 to 4 minutes because the AI reviews several sources before answering.",
+      loading: (n) => `Searching the web for “${n}”…`,
+      loadingHint: "The AI runs several searches in Spanish and English and checks each source.",
+      stop: "Stop",
+      yes: "Media appearances found", no: "No media appearances",
+      alertsH: (n) => `Alerts identified (${n})`, noAlerts: "No alerts were identified in the sources found.",
+      mentionsH: "Other appearances", direct: "Direct", context: "Context",
+      cutoff: "Cut-off date", period: "Period reviewed", searches: "Searches", dropped: "Unverifiable sources discarded",
+      example: "Sample",
+      cats: {
+        exclusion_comunidades: "Community exclusion / prior consultation",
+        retiro_registro: "Registry withdrawal or suspension",
+        sobreestimacion: "Credit overestimation",
+        doble_conteo: "Double counting / overlap",
+        conflicto_tierra: "Land conflict",
+        sanciones: "Sanctions or investigations",
+        deforestacion: "Deforestation in the area",
+        otra: "Other alert"
+      },
+      errors: {
+        bad_code: "The access code is not correct.",
+        rate_limited: "The hourly search limit was reached. Try again later.",
+        busy: "The AI service is busy right now. Try again in a few minutes.",
+        bad_format: "The AI answered in an unexpected format. Try again.",
+        missing_name: "Enter the project name.",
+        network: "Could not reach the server. Check your connection and try again.",
+        generic: "The search failed. Try again; if it persists, check the server logs."
+      },
+      disclaimer: "Results are generated by AI from public sources and may contain errors or omissions. Each alert links to its source so you can verify it. This is not a rating or a legal opinion about the project.",
+      months: ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"]
+    }
+  };
+
+  // Resultado de ejemplo (modo demostración), basado en el análisis de referencia.
+  function demoResult(lang, nombre) {
+    const today = new Date();
+    const since = new Date(today); since.setFullYear(since.getFullYear() - 10);
+    const iso = (d) => d.toISOString().slice(0, 10);
+    const es = lang === "es";
+    return {
+      demo: true,
+      proyecto: { nombre: nombre || "CRIMA Predio Putumayo y Andoque de Aduche REDD+", id_registro: "", pais: "Colombia", desarrollador: "", territorio: "Predio Putumayo" },
+      meta: { fecha_corte: iso(today), desde: iso(since), busquedas: 9, idioma: lang },
+      resultado: {
+        tiene_apariciones: true,
+        resumen: es
+          ? "El proyecto acumula varios señalamientos documentados: migración desde Verra a un registro local, exclusión de dos comunidades del polígono y denuncias por formulación sin consulta previa."
+          : "The project has several documented concerns: a move from Verra to a local registry, the exclusion of two communities from the project area, and complaints that it was designed without prior consultation.",
+        alertas: [
+          { categoria: "retiro_registro", titulo: "", relacion: "directa",
+            descripcion: es ? "Según el Instituto Sinchi, el proyecto fue dado de baja en Verra y migró a BioCarbon Registry, lo que reduce su credibilidad internacional."
+                            : "According to Instituto Sinchi, the project was removed from Verra and moved to BioCarbon Registry, which weakens its international credibility.",
+            fuentes: [{ medio: "Instituto Sinchi", url: "https://www.sinchi.org.co/", fecha: "2023" }] },
+          { categoria: "exclusion_comunidades", titulo: "", relacion: "directa",
+            descripcion: es ? "Pulitzer Center reporta que las comunidades Aménani y Monochoa fueron excluidas del polígono del proyecto pese a habitar el territorio."
+                            : "Pulitzer Center reports that the Aménani and Monochoa communities were left out of the project area even though they live in the territory.",
+            fuentes: [{ medio: "Pulitzer Center", url: "https://pulitzercenter.org/", fecha: null }] },
+          { categoria: "exclusion_comunidades", titulo: "", relacion: "contexto",
+            descripcion: es ? "La Cámara de Representantes recibió denuncias de comunidades indígenas sobre proyectos REDD+ en Putumayo formulados sin consulta previa. La fuente se refiere a proyectos de la región, no solo a este."
+                            : "The House of Representatives received complaints from indigenous communities about REDD+ projects in Putumayo designed without prior consultation. The source refers to projects in the region, not only this one.",
+            fuentes: [{ medio: "Cámara de Representantes de Colombia", url: "https://www.camara.gov.co/", fecha: null }] }
+        ],
+        otras_menciones: [],
+        fuentes_descartadas: 0
+      }
+    };
+  }
+
+  // ---------------------------------------------------------------- estado
+  let lang = "es";
+  try { const s = localStorage.getItem("radar-lang"); if (s === "en" || s === "es") lang = s; } catch (e) {}
+  let config = { demo: true, offline: true, requiresCode: false, years: 10 };
+  const results = [];   // más reciente primero
+  let pending = null;   // { nombre, started, ctl }
+  let timer = null;
+
+  const $ = (id) => document.getElementById(id);
+  const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  const safeUrl = (u) => (/^https?:\/\//i.test(u || "") ? u : null);
+
+  function fmtDate(s, L) {
+    if (!s) return "";
+    const m = String(s).match(/^(\d{4})(?:-(\d{2}))?(?:-(\d{2}))?$/);
+    if (!m) return "";
+    const mon = m[2] ? T[L].months[parseInt(m[2], 10) - 1] : "";
+    return [m[3] ? String(parseInt(m[3], 10)) : "", mon, m[1]].filter(Boolean).join(" ");
+  }
+
+  // ---------------------------------------------------------------- textos
+  function applyLang() {
+    const t = T[lang];
+    document.documentElement.lang = lang;
+    $("lang-es").setAttribute("aria-pressed", String(lang === "es"));
+    $("lang-en").setAttribute("aria-pressed", String(lang === "en"));
+    $("t-sub").textContent = t.sub;
+    $("t-intro").textContent = t.intro;
+    $("t-name").textContent = t.name;
+    $("t-more").textContent = t.more;
+    $("t-id").textContent = t.id;
+    $("t-country").textContent = t.country;
+    $("t-dev").textContent = t.dev;
+    $("t-terr").textContent = t.terr;
+    $("t-code").textContent = t.code;
+    $("go").textContent = pending ? t.going : t.go;
+    $("t-scope").textContent = t.scope(config.years || 10);
+    $("t-disclaimer").textContent = t.disclaimer;
+    $("f-nombre").placeholder = lang === "es" ? "Ej.: Aire de Vida Monochoa REDD+" : "e.g. Aire de Vida Monochoa REDD+";
+    const b = $("demo-banner");
+    b.hidden = !config.demo;
+    b.textContent = config.offline ? t.demoOffline : t.demoServer;
+    $("code-wrap").hidden = !config.requiresCode;
+    if (!$("formerr").hidden && $("formerr").dataset.key) showFormErr($("formerr").dataset.key);
+    render();
+  }
+
+  function setLang(L) {
+    lang = L;
+    try { localStorage.setItem("radar-lang", L); } catch (e) {}
+    applyLang();
+  }
+
+  function showFormErr(key) {
+    const el = $("formerr");
+    if (!key) { el.hidden = true; el.dataset.key = ""; return; }
+    el.dataset.key = key;
+    el.textContent = key === "needName" ? T[lang].needName : (T[lang].errors[key] || T[lang].errors.generic);
+    el.hidden = false;
+  }
+
+  // ---------------------------------------------------------------- render
+  function renderDossier(r) {
+    const L = r.meta.idioma === "en" ? "en" : "es"; // cada resultado se muestra en el idioma en que se generó
+    const t = T[L];
+    const p = r.proyecto, res = r.resultado;
+    const pill = res.tiene_apariciones
+      ? `<span class="pill ${res.alertas.length ? "yes" : "mentions"}">${esc(t.yes)}</span>`
+      : `<span class="pill no">${esc(t.no)}</span>`;
+    const meta = [p.id_registro, p.pais, p.desarrollador, p.territorio].filter(Boolean).map(esc).join(" · ");
+
+    const srcHtml = (fs) => fs.map((f) => {
+      const u = safeUrl(f.url);
+      const d = fmtDate(f.fecha, L);
+      return (u ? `<a href="${esc(u)}" target="_blank" rel="noopener noreferrer">${esc(f.medio)}</a>` : esc(f.medio)) + (d ? ` <span class="date">${esc(d)}</span>` : "");
+    }).join("");
+
+    const alerts = res.alertas.length
+      ? `<ul class="alerts">${res.alertas.map((a) => `
+          <li class="${a.relacion === "directa" ? "" : "ctx"}">
+            <div class="a-top"><span class="a-cat">${esc(a.titulo || t.cats[a.categoria] || t.cats.otra)}</span>
+              <span class="tag ${a.relacion === "directa" ? "dir" : "ctx"}">${esc(a.relacion === "directa" ? t.direct : t.context)}</span>
+              ${a.titulo ? `<span class="date">${esc(t.cats[a.categoria] || "")}</span>` : ""}</div>
+            <p class="a-desc">${esc(a.descripcion)}</p>
+            <div class="sources">${srcHtml(a.fuentes || [])}</div>
+          </li>`).join("")}</ul>`
+      : `<p class="summary">${esc(t.noAlerts)}</p>`;
+
+    const mentions = (res.otras_menciones || []).length
+      ? `<h3>${esc(t.mentionsH)}</h3><ul class="mentions">${res.otras_menciones.map((m) => {
+          const u = safeUrl(m.url); const d = fmtDate(m.fecha, L);
+          return `<li>${u ? `<a href="${esc(u)}" target="_blank" rel="noopener noreferrer">${esc(m.titulo || m.medio)}</a>` : esc(m.titulo)}
+            <span class="date">${esc(m.medio)}${d ? " · " + esc(d) : ""}</span></li>`;
+        }).join("")}</ul>`
+      : "";
+
+    return `<article class="dossier">
+      <div class="d-head">
+        <div class="d-title"><h2>${esc(p.nombre)}</h2>${pill}</div>
+        ${meta || r.demo ? `<div class="meta-line">${r.demo ? `<span>${esc(t.example)}</span>` : ""}${meta ? `<span>${meta}</span>` : ""}</div>` : ""}
+      </div>
+      <div class="d-body">
+        ${res.resumen ? `<p class="summary">${esc(res.resumen)}</p>` : ""}
+        ${res.tiene_apariciones || res.alertas.length ? `<h3>${esc(t.alertsH(res.alertas.length))}</h3>${alerts}` : ""}
+        ${mentions}
+      </div>
+      <div class="d-foot">
+        <span>${esc(t.cutoff)}: <strong>${esc(fmtDate(r.meta.fecha_corte, L))}</strong></span>
+        <span>${esc(t.period)}: <strong>${esc(fmtDate(r.meta.desde, L))} – ${esc(fmtDate(r.meta.fecha_corte, L))}</strong></span>
+        <span>${esc(t.searches)}: <strong>${esc(r.meta.busquedas)}</strong></span>
+        ${res.fuentes_descartadas ? `<span>${esc(t.dropped)}: <strong>${esc(res.fuentes_descartadas)}</strong></span>` : ""}
+      </div>
+    </article>`;
+  }
+
+  function render() {
+    const t = T[lang];
+    let html = "";
+    if (pending) {
+      const s = Math.floor((Date.now() - pending.started) / 1000);
+      html += `<div class="loading"><div class="spinner" aria-hidden="true"></div>
+        <div class="txt"><div>${esc(t.loading(pending.nombre))}</div><div class="elapsed">${esc(t.loadingHint)} · ${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}</div></div>
+        <button type="button" class="ghost" id="stop">${esc(t.stop)}</button></div>`;
+    }
+    if (!pending && lastError) html += `<div class="errorbox">${esc(t.errors[lastError] || t.errors.generic)}</div>`;
+    if (!results.length && !pending) html += `<div class="empty">${esc(t.emptyState)}</div>`;
+    // los ejemplos siguen el idioma elegido; los resultados reales conservan el suyo
+    html += results.map((r) => renderDossier(r.demo ? { ...demoResult(lang, ""), proyecto: r.proyecto } : r)).join("");
+    $("results").innerHTML = html;
+    const stop = $("stop");
+    if (stop) stop.onclick = () => pending && pending.ctl.abort();
+  }
+
+  let lastError = "";
+
+  // ---------------------------------------------------------------- búsqueda
+  async function run(ev) {
+    ev.preventDefault();
+    if (pending) return;
+    const nombre = $("f-nombre").value.trim();
+    if (nombre.length < 3) { showFormErr("needName"); $("f-nombre").focus(); return; }
+    showFormErr("");
+    lastError = "";
+    const body = {
+      nombre,
+      id_registro: $("f-id").value.trim(),
+      pais: $("f-pais").value.trim(),
+      desarrollador: $("f-dev").value.trim(),
+      territorio: $("f-terr").value.trim(),
+      idioma: lang
+    };
+    const ctl = new AbortController();
+    pending = { nombre, started: Date.now(), ctl };
+    $("go").disabled = true;
+    $("go").textContent = T[lang].going;
+    timer = setInterval(render, 1000);
+    render();
+
+    try {
+      let r;
+      if (config.demo) {
+        await new Promise((res, rej) => {
+          const h = setTimeout(res, 1800);
+          ctl.signal.addEventListener("abort", () => { clearTimeout(h); rej(new DOMException("aborted", "AbortError")); });
+        });
+        r = demoResult(lang, nombre);
+        r.proyecto = { ...r.proyecto, nombre, id_registro: body.id_registro, pais: body.pais || r.proyecto.pais, desarrollador: body.desarrollador, territorio: body.territorio || r.proyecto.territorio };
+      } else {
+        const resp = await fetch("/api/analizar", {
+          method: "POST",
+          headers: { "content-type": "application/json", "x-access-code": $("f-code").value },
+          body: JSON.stringify(body),
+          signal: ctl.signal
+        });
+        const data = await resp.json().catch(() => ({}));
+        if (!resp.ok) throw { key: data.error || "generic" };
+        r = data;
+      }
+      results.unshift(r);
+    } catch (e) {
+      if (!(e && e.name === "AbortError")) lastError = (e && e.key) || "network";
+    } finally {
+      clearInterval(timer);
+      pending = null;
+      $("go").disabled = false;
+      $("go").textContent = T[lang].go;
+      render();
+    }
+  }
+
+  // ---------------------------------------------------------------- inicio
+  $("lang-es").onclick = () => setLang("es");
+  $("lang-en").onclick = () => setLang("en");
+  $("form").addEventListener("submit", run);
+
+  // Resultado de ejemplo visible desde el inicio, para mostrar el formato.
+  results.push(demoResult(lang, ""));
+  applyLang();
+
+  fetch("/api/config").then((r) => (r.ok ? r.json() : Promise.reject())).then((c) => {
+    config = { demo: !!c.demo, offline: false, requiresCode: !!c.requiresCode, years: c.years || 10 };
+    if (!config.demo) results.length = 0; // con servidor real, se empieza vacío
+    applyLang();
+  }).catch(() => { /* sin servidor: vista previa con ejemplo */ });
+})();
+</script>
