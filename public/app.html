@@ -1,4 +1,4 @@
-<title>Radar Mediático de Carbono</title>
+<title>Radar Mediático de Proyectos de Carbono</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
@@ -45,7 +45,6 @@ body { background: var(--bg); color: var(--ink); font: 15px/1.55 var(--font-body
 header.top { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
 .brand { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; min-width: 0; }
 .brand h1 { font: 700 clamp(22px, 4vw, 28px)/1.1 var(--font-display); margin: 0; letter-spacing: -0.01em; text-wrap: balance; }
-.brand span { font: 500 12px var(--font-mono); color: var(--muted); letter-spacing: .04em; text-transform: uppercase; }
 .lang { display: inline-flex; border: 1px solid var(--line); border-radius: 999px; padding: 3px; background: var(--surface); }
 .lang button { border: 0; background: transparent; color: var(--muted); font: 600 12px var(--font-mono); padding: 5px 12px; border-radius: 999px; cursor: pointer; letter-spacing: .05em; }
 .lang button[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); }
@@ -115,8 +114,7 @@ ul.mentions li:first-child { border-top: 0; }
 <div class="wrap">
   <header class="top">
     <div class="brand">
-      <h1 id="t-title">Radar Mediático de Carbono</h1>
-      <span id="t-sub">Due diligence · prensa</span>
+      <h1 id="t-title">Radar Mediático de Proyectos de Carbono</h1>
     </div>
     <div class="lang" role="group" aria-label="Idioma / Language">
       <button type="button" id="lang-es" aria-pressed="true">ES</button>
@@ -159,10 +157,10 @@ ul.mentions li:first-child { border-top: 0; }
 
   const T = {
     es: {
-      sub: "Due diligence · prensa",
+      title: "Radar Mediático de Proyectos de Carbono",
       intro: "Escribe el nombre de un proyecto de carbono. La IA busca en la web sus apariciones en medios y fuentes institucionales, y señala las alertas documentadas con enlace a cada fuente.",
       name: "Nombre del proyecto",
-      more: "Datos opcionales para evitar confusiones",
+      more: "Datos opcionales",
       id: "ID en el registro", country: "País", dev: "Desarrollador", terr: "Territorio o resguardo",
       code: "Código de acceso",
       go: "Buscar apariciones", going: "Buscando…",
@@ -202,10 +200,10 @@ ul.mentions li:first-child { border-top: 0; }
       months: ["ene","feb","mar","abr","may","jun","jul","ago","sep","oct","nov","dic"]
     },
     en: {
-      sub: "Due diligence · press",
+      title: "Carbon Project Media Radar",
       intro: "Enter the name of a carbon project. The AI searches the web for its appearances in the media and institutional sources, and flags documented alerts with a link to each source.",
       name: "Project name",
-      more: "Optional details to avoid mix-ups",
+      more: "Optional details",
       id: "Registry ID", country: "Country", dev: "Developer", terr: "Territory or indigenous reserve",
       code: "Access code",
       go: "Search appearances", going: "Searching…",
@@ -307,7 +305,8 @@ ul.mentions li:first-child { border-top: 0; }
     document.documentElement.lang = lang;
     $("lang-es").setAttribute("aria-pressed", String(lang === "es"));
     $("lang-en").setAttribute("aria-pressed", String(lang === "en"));
-    $("t-sub").textContent = t.sub;
+    $("t-title").textContent = t.title;
+    document.title = t.title;
     $("t-intro").textContent = t.intro;
     $("t-name").textContent = t.name;
     $("t-more").textContent = t.more;
