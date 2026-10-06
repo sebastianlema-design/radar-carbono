@@ -9,6 +9,7 @@
 //   ANTHROPIC_API_KEY   Clave de la API de Claude (sin ella la app funciona en modo demostración)
 //   MODEL               Modelo a usar (por defecto: claude-sonnet-5-5)
 //   RATING_MODEL        Opcional. Modelo para la Calificación (por defecto: el mismo de MODEL)
+//   RATING_MAX_TOKENS   Opcional. Tope de respuesta de la Calificación, incluido el razonamiento del modelo (por defecto: 16000)
 //   MAX_SEARCHES        Máximo de búsquedas web por análisis (por defecto: 12)
 //   ACCESS_CODE         Opcional. Si se define, la página pide este código antes de buscar
 //   RATE_LIMIT_PER_HOUR Opcional. Análisis por hora por dirección IP, por cada pestaña (por defecto: 10)
@@ -21,6 +22,7 @@ const path = require("path");
 const API_KEY = process.env.ANTHROPIC_API_KEY || "";
 const MODEL = process.env.MODEL || "claude-sonnet-5-5";
 const RATING_MODEL = process.env.RATING_MODEL || MODEL;
+const RATING_MAX_TOKENS = parseInt(process.env.RATING_MAX_TOKENS || "16000", 10);
 const MAX_SEARCHES = parseInt(process.env.MAX_SEARCHES || "12", 10);
 const ACCESS_CODE = process.env.ACCESS_CODE || "";
 const RATE_LIMIT = parseInt(process.env.RATE_LIMIT_PER_HOUR || "10", 10);
@@ -354,7 +356,53 @@ DOCUMENTS:
 ${text}`;
 }
 
-async function callClaudeRating(prompt) {
+// Esquema de la respuesta. Con él la API garantiza un JSON válido y completo
+// ("salida estructurada"), en vez de depender de que el modelo lo escriba bien.
+function ratingSchema(type) {
+  const criterion = {
+    type: "object",
+    properties: {
+      score: { anyOf: [{ type: "integer" }, { type: "null" }] },
+      confidence: { type: "string", enum: ["high", "medium", "low"] },
+      summary: { type: "string" },
+      evidence: {
+        type: "array",
+        items: {
+          type: "object",
+          properties: { doc: { type: "integer" }, page: { type: "integer" }, note: { type: "string" } },
+          required: ["doc", "page", "note"],
+          additionalProperties: false,
+        },
+      },
+      gap: { type: "string" },
+    },
+    required: ["score", "confidence", "summary", "evidence", "gap"],
+    additionalProperties: false,
+  };
+  const ids = RATING_CRIT.filter((c) => !RATING_NA[type].includes(c.id)).map((c) => c.id);
+  return {
+    type: "object",
+    properties: {
+      project: {
+        type: "object",
+        properties: { name: { type: "string" }, registry: { type: "string" }, country: { type: "string" } },
+        required: ["name", "registry", "country"],
+        additionalProperties: false,
+      },
+      criteria: {
+        type: "object",
+        properties: Object.fromEntries(ids.map((id) => [id, criterion])),
+        required: ids,
+        additionalProperties: false,
+      },
+      red_flags: { type: "array", items: { type: "string" } },
+    },
+    required: ["project", "criteria", "red_flags"],
+    additionalProperties: false,
+  };
+}
+
+async function postMessages(body) {
   const r = await fetch(API_BASE + "/v1/messages", {
     method: "POST",
     headers: {
@@ -362,15 +410,28 @@ async function callClaudeRating(prompt) {
       "x-api-key": API_KEY,
       "anthropic-version": "2023-06-01",
     },
-    body: JSON.stringify({ model: RATING_MODEL, max_tokens: 4000, messages: [{ role: "user", content: prompt }] }),
+    body: JSON.stringify(body),
   });
   const data = await r.json().catch(() => null);
+  return { r, data };
+}
+
+async function callClaudeRating(prompt, type) {
+  // El tope incluye el razonamiento interno del modelo, que cuenta como salida:
+  // con un tope bajo la respuesta puede quedar cortada antes de terminar el JSON.
+  const base = { model: RATING_MODEL, max_tokens: RATING_MAX_TOKENS, messages: [{ role: "user", content: prompt }] };
+  let { r, data } = await postMessages({ ...base, output_config: { format: { type: "json_schema", schema: ratingSchema(type) } } });
+  if (r.status === 400) {
+    // Un modelo que no admite salida estructurada rechaza la petición sin costo: se repite sin el esquema.
+    console.warn(`[aviso] calificación: la API no aceptó la salida estructurada (${data?.error?.message || "HTTP 400"}); se reintenta sin ella`);
+    ({ r, data } = await postMessages(base));
+  }
   if (!r.ok || !data) {
     const err = new Error(data?.error?.message || `HTTP ${r.status}`);
     err.status = r.status;
     throw err;
   }
-  return (data.content || []).filter((b) => b.type === "text").map((b) => b.text).join("");
+  return data;
 }
 
 // Valida la respuesta del modelo: solo pasan los campos y criterios esperados.
@@ -383,7 +444,7 @@ function sanitizeRating(raw, type) {
     const x = (raw.criteria && raw.criteria[c.id]) || {};
     criteria[c.id] = {
       score: score(x.score),
-      confidence: ["high", "medium", "low"].includes(x.confidence) ? x.confidence : "",
+      confidence: ["high", "medium", "low"].includes(String(x.confidence).toLowerCase()) ? String(x.confidence).toLowerCase() : "",
       summary: clean(x.summary, 600),
       evidence: (Array.isArray(x.evidence) ? x.evidence : [])
         .slice(0, 3)
@@ -401,13 +462,27 @@ function sanitizeRating(raw, type) {
 }
 
 async function rate(type, lang, text) {
-  const raw = parseJson(await callClaudeRating(buildRatingPrompt(type, lang, text)));
+  const data = await callClaudeRating(buildRatingPrompt(type, lang, text), type);
+  const blocks = data.content || [];
+  const out = blocks.filter((b) => b.type === "text").map((b) => b.text).join("");
+  const raw = parseJson(out);
   if (!raw || typeof raw !== "object" || !raw.criteria) {
-    const err = new Error("La respuesta de la IA no tuvo el formato esperado.");
+    // Deja en el registro por qué falló, para poder corregirlo sin adivinar.
+    console.error(
+      `[diagnóstico] calificación sin JSON válido · stop_reason=${data.stop_reason}` +
+      ` · bloques=${blocks.map((b) => b.type).join(",") || "ninguno"}` +
+      ` · tokens de salida=${data.usage?.output_tokens ?? "?"} de ${RATING_MAX_TOKENS}` +
+      ` · inicio="${out.slice(0, 160).replace(/\s+/g, " ")}"`
+    );
+    const err = new Error(
+      data.stop_reason === "max_tokens"
+        ? "La respuesta de la IA quedó incompleta (se alcanzó RATING_MAX_TOKENS)."
+        : "La respuesta de la IA no tuvo el formato esperado."
+    );
     err.code = "bad_format";
     throw err;
   }
-  return sanitizeRating(raw, type);
+  return { resultado: sanitizeRating(raw, type), salida: data.usage?.output_tokens ?? "?" };
 }
 
 // ---------------------------------------------------------------- servidor HTTP
@@ -445,8 +520,8 @@ const server = http.createServer(async (req, res) => {
     if (text.length > RATING_MAX_CHARS) return sendJson(res, 413, { error: "too_large" });
 
     try {
-      const resultado = await rate(type, lang, text);
-      console.log(`[ok] calificación ${type} · ${text.length} caracteres`);
+      const { resultado, salida } = await rate(type, lang, text);
+      console.log(`[ok] calificación ${type} · ${text.length} caracteres · ${salida} tokens de salida`);
       return sendJson(res, 200, { resultado, meta: { modelo: RATING_MODEL, idioma: lang } });
     } catch (e) {
       console.error(`[error] calificación ${type}:`, e.message);
